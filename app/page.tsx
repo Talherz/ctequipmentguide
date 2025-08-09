@@ -69,7 +69,7 @@ export default async function HomePage() {
             Shop by Category
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {categories.map((category) => (
+            {categories.map((category: { id: number; name: string }) => (
               <Link
                 key={category.id}
                 href={{ pathname: "/products", query: { category: String(category.id) } }}
@@ -96,7 +96,7 @@ export default async function HomePage() {
             Top Vendors
           </h2>
           <div className="flex flex-wrap justify-center gap-4">
-            {vendors.map((vendor) => (
+            {vendors.map((vendor: { id: number; name: string }) => (
               <Link
                 key={vendor.id}
                 href={{ pathname: "/products", query: { vendor: String(vendor.id) } }}
@@ -116,7 +116,7 @@ export default async function HomePage() {
             Featured Products
           </h2>
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {products.map((product) => (
+            {products.map((product: { id: number; slug: string; name: string; sku: string | null; price: number | null; image_url?: string | null }) => (
               <Link
                 key={product.id}
                 href={`/product/${product.slug}`}
