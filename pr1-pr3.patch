@@ -1,0 +1,733 @@
+diff --git a/.env.example b/.env.example
+new file mode 100644
+index 0000000..8448fe8
+--- /dev/null
++++ b/.env.example
+@@ -0,0 +1,4 @@
++NEXT_PUBLIC_SUPABASE_URL=
++NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
++NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=
++NEXT_PUBLIC_SITE_URL=http://localhost:3000
+\ No newline at end of file
+diff --git a/README.md b/README.md
+index 7002734..717b189 100644
+--- a/README.md
++++ b/README.md
+@@ -103,3 +103,51 @@ Please file feedback and issues over on the [Supabase GitHub org](https://github
+ - [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
+ - [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
+ - [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
++
++## E-commerce Catalog Proof‑of‑Concept
++
++This repository has been extended with a simple e‑commerce catalog built with Next.js and Supabase.
++The goal of the catalog is to provide a modern Amazon‑style browsing experience with search, vendor
++and category filters, product detail pages, a shopping cart, checkout, and account management.
++
++The implementation is broken down into small pull requests. The first pull request introduces the
++layout shell, navigation bar with search, sidebar with vendor/category filters, an empty grid on
++the `/products` page, and route stubs for product details, cart, checkout and account pages.
++
++### Environment variables
++
++To run the catalog locally or deploy it on Vercel you will need to provide a few Supabase keys in
++your environment:
++
++- `NEXT_PUBLIC_SUPABASE_URL` – your Supabase project URL (e.g. `https://xyzcompany.supabase.co`).
++- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` – the Supabase anon (publishable) API key.
++- `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` – a Supabase service role key (required later for inserting orders).
++- `NEXT_PUBLIC_SITE_URL` – the base URL for your deployment. This defaults to `http://localhost:3000`
++  in development and is used when generating absolute URLs in emails.
++
++Create a `.env.local` file in the root of the project and set the above variables. When deploying to
++Vercel, configure the same variables in the Vercel dashboard.
++
++### Running locally
++
++1. Clone the repository and change into the project directory.
++2. Copy `.env.example` to `.env.local` (create one if it does not exist) and set the environment variables described above.
++3. Install dependencies and start the development server:
++
++   ```bash
++   npm install
++   npm run dev
++   ```
++
++4. Open [http://localhost:3000/products](http://localhost:3000/products) to view the catalog. The
++   home page from the starter kit remains available at `/`.
++
++### Previewing on Vercel
++
++Deploy the project to Vercel either via the GitHub integration or using the Vercel CLI. Ensure the
++environment variables are configured in the Vercel dashboard. Once deployed, visit
++`https://your-vercel-url.vercel.app/products` to access the catalog.
++
++Later pull requests will flesh out server side rendering for `/products`, Supabase queries,
++pagination, cart functionality, checkout order insertion, email notifications via Formbricks, and
++account‑level order history.
+diff --git a/app/account/page.tsx b/app/account/page.tsx
+new file mode 100644
+index 0000000..94858f7
+--- /dev/null
++++ b/app/account/page.tsx
+@@ -0,0 +1,14 @@
++/**
++ * Account page stub.
++ * Displays the user's purchase history in a later pull request.
++ */
++export default function AccountPage() {
++  return (
++    <div className="space-y-4">
++      <h1 className="text-2xl font-semibold">Account</h1>
++      <p className="text-muted-foreground">
++        Purchase history will appear here.
++      </p>
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/app/cart/page.tsx b/app/cart/page.tsx
+new file mode 100644
+index 0000000..1c8e09f
+--- /dev/null
++++ b/app/cart/page.tsx
+@@ -0,0 +1,56 @@
++"use client";
++
++import Link from "next/link";
++import { useCart } from "@/components/cart-context";
++
++/**
++ * CartPage renders the current contents of the cart using the useCart hook.
++ * It provides a simple summary of each item along with a total. In later
++ * pull requests this page can be enhanced to allow quantity adjustments
++ * or removal of items.
++ */
++export default function CartPage() {
++  const { cart, total } = useCart();
++
++  return (
++    <div className="space-y-4">
++      <h1 className="text-2xl font-semibold">Cart</h1>
++      {cart.length === 0 ? (
++        <p className="text-muted-foreground">Your cart is empty.</p>
++      ) : (
++        <>
++          <ul className="divide-y divide-border rounded-md border border-border">
++            {cart.map((item) => (
++              <li key={item.id} className="p-4 flex justify-between items-center">
++                <div>
++                  <Link href={`/product/${item.slug}`} className="font-medium hover:underline">
++                    {item.name}
++                  </Link>
++                  <p className="text-sm text-muted-foreground">
++                    Quantity: {item.quantity}
++                  </p>
++                </div>
++                <p className="font-medium">
++                  {(item.price * item.quantity).toFixed(2)}
++                </p>
++              </li>
++            ))}
++          </ul>
++          <div className="flex justify-end mt-4">
++            <p className="text-lg font-semibold">
++              Total: {total.toFixed(2)}
++            </p>
++          </div>
++          <div className="flex justify-end mt-2">
++            <Link
++              href="/checkout"
++              className="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:bg-primary/90"
++            >
++              Proceed to checkout
++            </Link>
++          </div>
++        </>
++      )}
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/app/checkout/page.tsx b/app/checkout/page.tsx
+new file mode 100644
+index 0000000..77c4e87
+--- /dev/null
++++ b/app/checkout/page.tsx
+@@ -0,0 +1,14 @@
++/**
++ * Checkout page stub.
++ * Will handle order submission and email notifications in a later pull request.
++ */
++export default function CheckoutPage() {
++  return (
++    <div className="space-y-4">
++      <h1 className="text-2xl font-semibold">Checkout</h1>
++      <p className="text-muted-foreground">
++        Checkout flow will be implemented soon.
++      </p>
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/app/layout.tsx b/app/layout.tsx
+index 4d3424a..005c4dc 100644
+--- a/app/layout.tsx
++++ b/app/layout.tsx
+@@ -1,6 +1,7 @@
+ import type { Metadata } from "next";
+ import { Geist } from "next/font/google";
+ import { ThemeProvider } from "next-themes";
++import { CartProvider } from "@/components/cart-context";
+ import "./globals.css";
+ 
+ const defaultUrl = process.env.VERCEL_URL
+@@ -33,7 +34,7 @@ export default function RootLayout({
+           enableSystem
+           disableTransitionOnChange
+         >
+-          {children}
++          <CartProvider>{children}</CartProvider>
+         </ThemeProvider>
+       </body>
+     </html>
+diff --git a/app/product/[slug]/page.tsx b/app/product/[slug]/page.tsx
+new file mode 100644
+index 0000000..081edf6
+--- /dev/null
++++ b/app/product/[slug]/page.tsx
+@@ -0,0 +1,29 @@
++import { notFound } from "next/navigation";
++import { createClient } from "@/lib/supabase/server";
++import ProductDetail from "./product-detail";
++
++/* eslint-disable @typescript-eslint/no-explicit-any */
++/**
++ * ProductPage fetches a single product by slug from Supabase on the server.
++ * If found, it renders the ProductDetail client component which allows
++ * adding the item to the cart. If not found, it triggers a 404 using
++ * Next.js's notFound helper.
++ */
++export default async function ProductPage({ params }: { params: any }) {
++  const { slug } = params;
++  const supabase = await createClient();
++  const { data: product, error } = await supabase
++    .from("products")
++    .select(
++      "id, slug, name, sku, price, description, vendor_id, category_id",
++    )
++    .eq("slug", slug)
++    .limit(1)
++    .maybeSingle();
++
++  if (error || !product) {
++    // Show 404 if product does not exist or query fails
++    notFound();
++  }
++  return <ProductDetail product={product} />;
++}
+\ No newline at end of file
+diff --git a/app/product/[slug]/product-detail.tsx b/app/product/[slug]/product-detail.tsx
+new file mode 100644
+index 0000000..07b3364
+--- /dev/null
++++ b/app/product/[slug]/product-detail.tsx
+@@ -0,0 +1,54 @@
++"use client";
++
++import { useCart } from "@/components/cart-context";
++
++interface Product {
++  id: string | number;
++  slug: string;
++  name: string;
++  price: number | null;
++  sku?: string | null;
++  vendor_id?: string | number | null;
++  category_id?: string | number | null;
++  description?: string | null;
++}
++
++export default function ProductDetail({ product }: { product: Product }) {
++  const { addItem } = useCart();
++  const handleAddToCart = () => {
++    if (product.price === null) return;
++    addItem({
++      id: product.id,
++      slug: product.slug,
++      name: product.name,
++      price: typeof product.price === "number" ? product.price : Number(product.price),
++      quantity: 1,
++      sku: product.sku ?? undefined,
++      vendor_id: product.vendor_id ?? undefined,
++      category_id: product.category_id ?? undefined,
++    });
++  };
++  return (
++    <div className="space-y-4">
++      <h1 className="text-2xl font-semibold">{product.name}</h1>
++      <div className="text-sm text-muted-foreground">
++        {product.sku && <p className="mb-1">SKU: {product.sku}</p>}
++        {product.price !== null && (
++          <p className="text-lg font-medium">
++            ${" "}
++            {Number(product.price).toFixed(2)}
++          </p>
++        )}
++      </div>
++      {product.description && (
++        <p className="text-sm">{product.description}</p>
++      )}
++      <button
++        onClick={handleAddToCart}
++        className="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:bg-primary/90"
++      >
++        Add to cart
++      </button>
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/app/products/layout.tsx b/app/products/layout.tsx
+new file mode 100644
+index 0000000..06320de
+--- /dev/null
++++ b/app/products/layout.tsx
+@@ -0,0 +1,41 @@
++import type { ReactNode } from "react";
++import LayoutShell from "@/components/layout-shell";
++import { createClient } from "@/lib/supabase/server";
++
++/**
++ * Layout for all /products routes.
++ * Wraps its children with the LayoutShell which provides
++ * the top navigation bar and sidebar filters.
++ */
++export default async function ProductsLayout({
++  children,
++}: {
++  children: ReactNode;
++}) {
++  // Fetch vendor and category lists server-side for the sidebar. Errors are
++  // swallowed so that the page still renders if the tables are not yet
++  // present or the query fails. Empty arrays will result in simple "No vendors"
++  // and "No categories" messages.
++  let vendors: { id: string | number; name: string }[] = [];
++  let categories: { id: string | number; name: string }[] = [];
++  try {
++    const supabase = await createClient();
++    const { data: vendorData } = await supabase
++      .from("vendors")
++      .select("id,name")
++      .order("name", { ascending: true });
++    vendors = vendorData ?? [];
++    const { data: categoryData } = await supabase
++      .from("categories")
++      .select("id,name")
++      .order("name", { ascending: true });
++    categories = categoryData ?? [];
++  } catch {
++    // ignore errors; leave vendors and categories empty
++  }
++  return (
++    <LayoutShell vendors={vendors} categories={categories}>
++      {children}
++    </LayoutShell>
++  );
++}
+\ No newline at end of file
+diff --git a/app/products/page.tsx b/app/products/page.tsx
+new file mode 100644
+index 0000000..40af853
+--- /dev/null
++++ b/app/products/page.tsx
+@@ -0,0 +1,124 @@
++import Link from "next/link";
++import { createClient } from "@/lib/supabase/server";
++
++/* eslint-disable @typescript-eslint/no-explicit-any */
++
++
++/**
++ * Server-rendered product catalog. Fetches products from Supabase based on
++ * optional query parameters for search (`q`), vendor, category, and page.
++ * Pagination is implemented via Supabase's range API and counts the total
++ * number of matching rows to compute the number of pages. If the database
++ * tables are missing, a friendly message is displayed.
++ */
++export default async function ProductsPage({ searchParams }: { searchParams: any }) {
++  // Extract query parameters with sensible defaults
++  const q = typeof searchParams.q === "string" ? searchParams.q.trim() : undefined;
++  const vendor = typeof searchParams.vendor === "string" ? searchParams.vendor : undefined;
++  const category = typeof searchParams.category === "string" ? searchParams.category : undefined;
++  const currentPageRaw = typeof searchParams.page === "string" ? searchParams.page : undefined;
++  const currentPage = Number.parseInt(currentPageRaw || "1", 10) || 1;
++  const pageSize = 12;
++
++  // Create a Supabase client on the server
++  const supabase = await createClient();
++
++  // Build base query selecting essential fields; include count for pagination
++  let query = supabase
++    .from("products")
++    .select(
++      "id, slug, name, sku, price, vendor_id, category_id",
++      { count: "exact" },
++    );
++
++  // Apply search filter if provided (case-insensitive match on name)
++  if (q) {
++    query = query.ilike("name", `%${q}%`);
++  }
++  // Filter by vendor ID if provided
++  if (vendor) {
++    query = query.eq("vendor_id", vendor);
++  }
++  // Filter by category ID if provided
++  if (category) {
++    query = query.eq("category_id", category);
++  }
++
++  // Apply pagination boundaries
++  const fromIndex = (currentPage - 1) * pageSize;
++  const toIndex = fromIndex + pageSize - 1;
++
++  const { data: products, error, count } = await query
++    .order("name", { ascending: true })
++    .range(fromIndex, toIndex);
++
++  // Handle potential errors (e.g. table does not exist)
++  if (error) {
++    return (
++      <div className="space-y-4">
++        <h1 className="text-2xl font-semibold">Products</h1>
++        <p className="text-destructive-foreground">
++          Unable to fetch products: {error.message}
++        </p>
++      </div>
++    );
++  }
++
++  const totalCount = count ?? 0;
++  const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
++
++  return (
++    <div className="space-y-4">
++      <h1 className="text-2xl font-semibold">Products</h1>
++      {(!products || products.length === 0) ? (
++        <p className="text-muted-foreground">No products found.</p>
++      ) : (
++        <>
++          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
++            {products.map((product) => (
++              <Link
++                key={product.slug}
++                href={`/product/${product.slug}`}
++                className="border border-border rounded-lg p-4 hover:shadow"
++              >
++                <h2 className="font-medium mb-2">{product.name}</h2>
++                <p className="text-sm text-muted-foreground">
++                  SKU: {product.sku || "N/A"}
++                </p>
++                {product.price !== null && (
++                  <p className="text-sm font-medium mt-1">
++                    {Number(product.price).toFixed(2)}
++                  </p>
++                )}
++              </Link>
++            ))}
++          </div>
++          {/* Pagination controls */}
++          <div className="flex justify-center mt-6 space-x-2">
++            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNumber) => (
++              <Link
++                key={pageNumber}
++                href={{
++                  pathname: "/products",
++                  query: {
++                    ...(q ? { q } : {}),
++                    ...(vendor ? { vendor } : {}),
++                    ...(category ? { category } : {}),
++                    page: pageNumber.toString(),
++                  },
++                }}
++                className={`px-3 py-1 rounded-md text-sm border ${
++                  pageNumber === currentPage
++                    ? "bg-accent text-accent-foreground"
++                    : "text-foreground hover:bg-accent hover:text-accent-foreground"
++                }`}
++              >
++                {pageNumber}
++              </Link>
++            ))}
++          </div>
++        </>
++      )}
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/components/cart-context.tsx b/components/cart-context.tsx
+new file mode 100644
+index 0000000..31538bc
+--- /dev/null
++++ b/components/cart-context.tsx
+@@ -0,0 +1,129 @@
++"use client";
++
++import { createContext, useContext, useReducer, ReactNode } from "react";
++
++/**
++ * A single cart item represents a product added to the shopping cart. It
++ * includes the product's identifier, slug, name, price, quantity and
++ * optionally SKU or vendor/category identifiers. Additional properties
++ * can be added later as needed.
++ */
++export interface CartItem {
++  id: string | number;
++  slug: string;
++  name: string;
++  price: number;
++  quantity: number;
++  sku?: string | null;
++  vendor_id?: string | number | null;
++  category_id?: string | number | null;
++}
++
++interface CartState {
++  items: CartItem[];
++}
++
++type CartAction =
++  | { type: "ADD_ITEM"; payload: CartItem }
++  | { type: "REMOVE_ITEM"; payload: { id: string | number } }
++  | { type: "UPDATE_QUANTITY"; payload: { id: string | number; quantity: number } }
++  | { type: "CLEAR_CART" };
++
++interface CartContextValue {
++  cart: CartItem[];
++  addItem: (item: CartItem) => void;
++  removeItem: (id: string | number) => void;
++  updateQuantity: (id: string | number, quantity: number) => void;
++  clearCart: () => void;
++  total: number;
++}
++
++// Initialize the cart context; will be provided in CartProvider below.
++const CartContext = createContext<CartContextValue | undefined>(undefined);
++
++function cartReducer(state: CartState, action: CartAction): CartState {
++  switch (action.type) {
++    case "ADD_ITEM": {
++      // If the item is already in the cart, increase its quantity instead of
++      // adding a duplicate entry.
++      const existingIndex = state.items.findIndex(
++        (item) => item.id === action.payload.id,
++      );
++      if (existingIndex !== -1) {
++        const updatedItems = [...state.items];
++        updatedItems[existingIndex] = {
++          ...updatedItems[existingIndex],
++          quantity:
++            updatedItems[existingIndex].quantity + action.payload.quantity,
++        };
++        return { items: updatedItems };
++      }
++      return { items: [...state.items, action.payload] };
++    }
++    case "REMOVE_ITEM": {
++      return {
++        items: state.items.filter((item) => item.id !== action.payload.id),
++      };
++    }
++    case "UPDATE_QUANTITY": {
++      const updatedItems = state.items.map((item) =>
++        item.id === action.payload.id
++          ? { ...item, quantity: action.payload.quantity }
++          : item,
++      );
++      return { items: updatedItems };
++    }
++    case "CLEAR_CART": {
++      return { items: [] };
++    }
++    default:
++      return state;
++  }
++}
++
++export function CartProvider({ children }: { children: ReactNode }) {
++  const [state, dispatch] = useReducer(cartReducer, { items: [] });
++
++  const addItem = (item: CartItem) => {
++    dispatch({ type: "ADD_ITEM", payload: item });
++  };
++  const removeItem = (id: string | number) => {
++    dispatch({ type: "REMOVE_ITEM", payload: { id } });
++  };
++  const updateQuantity = (id: string | number, quantity: number) => {
++    dispatch({ type: "UPDATE_QUANTITY", payload: { id, quantity } });
++  };
++  const clearCart = () => {
++    dispatch({ type: "CLEAR_CART" });
++  };
++  // Compute total price; multiply price by quantity for each item.
++  const total = state.items.reduce(
++    (acc, item) => acc + item.price * item.quantity,
++    0,
++  );
++  return (
++    <CartContext.Provider
++      value={{
++        cart: state.items,
++        addItem,
++        removeItem,
++        updateQuantity,
++        clearCart,
++        total,
++      }}
++    >
++      {children}
++    </CartContext.Provider>
++  );
++}
++
++/**
++ * Custom hook to access cart context. Throws if used outside of CartProvider.
++ */
++export function useCart() {
++  const context = useContext(CartContext);
++  if (context === undefined) {
++    throw new Error("useCart must be used within a CartProvider");
++  }
++  return context;
++}
+\ No newline at end of file
+diff --git a/components/layout-shell.tsx b/components/layout-shell.tsx
+new file mode 100644
+index 0000000..b7ce1f4
+--- /dev/null
++++ b/components/layout-shell.tsx
+@@ -0,0 +1,93 @@
++import Link from "next/link";
++import { ReactNode } from "react";
++import { Input } from "@/components/ui/input";
++
++// Define simple vendor and category shapes to populate the sidebar. These types
++// intentionally use `string | number` for IDs to support both numeric and UUID
++// identifiers that may be used in Supabase. Names are always strings.
++type Vendor = { id: string | number; name: string };
++type Category = { id: string | number; name: string };
++
++interface LayoutShellProps {
++  children: ReactNode;
++  vendors?: Vendor[];
++  categories?: Category[];
++}
++
++/**
++ * LayoutShell provides the basic page frame for the catalog.
++ * It renders a top navigation bar with a search input and a sidebar
++ * for vendor and category filters. Child content is displayed in the main area.
++ *
++ * This component is intentionally minimal for the initial proof‑of‑concept.
++ * Later pull requests will connect the search bar and filters to live data.
++ */
++export default function LayoutShell({
++  children,
++  vendors = [],
++  categories = [],
++}: LayoutShellProps) {
++  return (
++    <div className="min-h-screen flex flex-col">
++      {/* Navigation bar */}
++      <nav className="bg-background border-b border-border px-4 py-2 flex items-center gap-4">
++        <Link href="/products" className="text-lg font-semibold">
++          Catalog
++        </Link>
++        <div className="flex-1 max-w-md">
++          <Input
++            type="search"
++            placeholder="Search products..."
++            className="w-full"
++            // The search bar will be wired up in a later pull request to update
++            // the query string; for now it is a simple input.
++          />
++        </div>
++      </nav>
++      {/* Sidebar + main content */}
++      <div className="flex flex-1">
++        {/* Sidebar for filters */}
++        <aside className="hidden md:block w-60 border-r border-border p-4">
++          <div className="mb-6">
++            <h3 className="text-sm font-medium mb-2">Vendor</h3>
++            <ul className="space-y-1 text-sm">
++              {vendors.length === 0 && (
++                <li className="text-muted-foreground">No vendors</li>
++              )}
++              {vendors.map((vendor) => (
++                <li key={vendor.id}>
++                  <Link
++                    href={{ pathname: "/products", query: { vendor: vendor.id.toString() } }}
++                    className="text-foreground hover:underline focus:underline"
++                  >
++                    {vendor.name}
++                  </Link>
++                </li>
++              ))}
++            </ul>
++          </div>
++          <div>
++            <h3 className="text-sm font-medium mb-2">Category</h3>
++            <ul className="space-y-1 text-sm">
++              {categories.length === 0 && (
++                <li className="text-muted-foreground">No categories</li>
++              )}
++              {categories.map((category) => (
++                <li key={category.id}>
++                  <Link
++                    href={{ pathname: "/products", query: { category: category.id.toString() } }}
++                    className="text-foreground hover:underline focus:underline"
++                  >
++                    {category.name}
++                  </Link>
++                </li>
++              ))}
++            </ul>
++          </div>
++        </aside>
++        {/* Main content */}
++        <main className="flex-1 p-4">{children}</main>
++      </div>
++    </div>
++  );
++}
+\ No newline at end of file
+diff --git a/lib/supabase/middleware.ts b/lib/supabase/middleware.ts
+index 1ba5ce6..27834e2 100644
+--- a/lib/supabase/middleware.ts
++++ b/lib/supabase/middleware.ts
+@@ -50,6 +50,12 @@ export async function updateSession(request: NextRequest) {
+   if (
+     request.nextUrl.pathname !== "/" &&
+     !user &&
++    // Allow unauthenticated access to the public catalog and product pages
++    !request.nextUrl.pathname.startsWith("/products") &&
++    !request.nextUrl.pathname.startsWith("/product") &&
++    !request.nextUrl.pathname.startsWith("/cart") &&
++    !request.nextUrl.pathname.startsWith("/checkout") &&
++    // Continue to allow login and auth pages
+     !request.nextUrl.pathname.startsWith("/login") &&
+     !request.nextUrl.pathname.startsWith("/auth")
+   ) {
+diff --git a/package-lock.json b/package-lock.json
+index 9d3d16a..22ba63d 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "project",
++  "name": "ctequipmentguide",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {

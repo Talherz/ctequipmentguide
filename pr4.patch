@@ -1,0 +1,320 @@
+diff --git a/.env.example b/.env.example
+index 8448fe8..defb05b 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,4 +1,9 @@
+ NEXT_PUBLIC_SUPABASE_URL=
+ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=
+ NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY=
+-NEXT_PUBLIC_SITE_URL=http://localhost:3000
+\ No newline at end of file
++NEXT_PUBLIC_SITE_URL=http://localhost:3000
++# Formspree endpoint for checkout email notifications. Set to your Formspree
++# form's endpoint URL (e.g. https://formspree.io/f/xyzabc). If defined,
++# checkout will send an email to Talha.Chughtai@outlook.com with order
++# details. If left blank, no email will be sent.
++NEXT_PUBLIC_FORMSPREE_ENDPOINT=
+\ No newline at end of file
+diff --git a/README.md b/README.md
+index 717b189..8b27e92 100644
+--- a/README.md
++++ b/README.md
+@@ -112,7 +112,9 @@ and category filters, product detail pages, a shopping cart, checkout, and accou
+ 
+ The implementation is broken down into small pull requests. The first pull request introduces the
+ layout shell, navigation bar with search, sidebar with vendor/category filters, an empty grid on
+-the `/products` page, and route stubs for product details, cart, checkout and account pages.
++the `/products` page, and route stubs for product details, cart, checkout and account pages. Later
++pull requests add server‑side rendering for `/products`, dynamic filters, product detail pages with
++add‑to‑cart functionality, a cart context, and checkout with order insertion.
+ 
+ ### Environment variables
+ 
+@@ -125,6 +127,11 @@ your environment:
+ - `NEXT_PUBLIC_SITE_URL` – the base URL for your deployment. This defaults to `http://localhost:3000`
+   in development and is used when generating absolute URLs in emails.
+ 
++- `NEXT_PUBLIC_FORMSPREE_ENDPOINT` – optional. If set to your Formspree form endpoint
++  (e.g. `https://formspree.io/f/xyzabc`), the checkout API will send an email
++  notification to `Talha.Chughtai@outlook.com` with the order details. If left blank,
++  no email will be sent.
++
+ Create a `.env.local` file in the root of the project and set the above variables. When deploying to
+ Vercel, configure the same variables in the Vercel dashboard.
+ 
+@@ -148,6 +155,4 @@ Deploy the project to Vercel either via the GitHub integration or using the Verc
+ environment variables are configured in the Vercel dashboard. Once deployed, visit
+ `https://your-vercel-url.vercel.app/products` to access the catalog.
+ 
+-Later pull requests will flesh out server side rendering for `/products`, Supabase queries,
+-pagination, cart functionality, checkout order insertion, email notifications via Formbricks, and
+-account‑level order history.
++Later pull requests will flesh out account‑level order history and other polish.
+diff --git a/app/api/checkout/route.ts b/app/api/checkout/route.ts
+new file mode 100644
+index 0000000..4e012d7
+--- /dev/null
++++ b/app/api/checkout/route.ts
+@@ -0,0 +1,111 @@
++import { createClient } from "@/lib/supabase/server";
++import { NextResponse, NextRequest } from "next/server";
++
++/**
++ * POST /api/checkout
++ *
++ * This API route handles checkout by creating an order and associated
++ * order_items records in Supabase. It accepts a JSON body with an
++ * array of cart items (id, quantity, price, sku, vendor_id, category_id).
++ * After inserting the order and items, it sends an email notification via
++ * Formspree if a FORMSPREE_ENDPOINT environment variable is configured.
++ */
++export async function POST(request: NextRequest) {
++  try {
++    const supabase = await createClient();
++    const body = await request.json();
++    const items = Array.isArray(body.items) ? body.items : [];
++    if (items.length === 0) {
++      return NextResponse.json(
++        { error: "No items provided" },
++        { status: 400 },
++      );
++    }
++    // Attempt to fetch the authenticated user; may be null for guest checkout
++    const {
++      data: { user },
++    } = await supabase.auth.getUser();
++    // Compute total from items array
++    const total = items.reduce(
++      (sum: number, item: { price: number; quantity: number }) =>
++        sum + Number(item.price) * Number(item.quantity),
++      0,
++    );
++    // Insert order and return inserted record
++    const { data: orderData, error: orderError } = await supabase
++      .from("orders")
++      .insert({
++        user_id: user?.id ?? null,
++        total,
++      })
++      .select()
++      .limit(1);
++    if (orderError || !orderData || orderData.length === 0) {
++      return NextResponse.json(
++        { error: orderError?.message || "Failed to create order" },
++        { status: 500 },
++      );
++    }
++    const order = orderData[0];
++    // Prepare order items payload
++    const orderItems = items.map(
++      (item: {
++        id: string | number;
++        quantity: number;
++        price: number;
++        sku?: string;
++        vendor_id?: string | number;
++        category_id?: string | number;
++      }) => ({
++        order_id: order.id,
++        product_id: item.id,
++        quantity: item.quantity,
++        price: item.price,
++        sku: item.sku ?? null,
++        vendor_id: item.vendor_id ?? null,
++        category_id: item.category_id ?? null,
++      }),
++    );
++    const { error: orderItemsError } = await supabase
++      .from("order_items")
++      .insert(orderItems);
++    if (orderItemsError) {
++      return NextResponse.json(
++        { error: orderItemsError.message },
++        { status: 500 },
++      );
++    }
++    // Send email via Formspree if configured
++    const endpoint = process.env.NEXT_PUBLIC_FORMSPREE_ENDPOINT || process.env.FORMSPREE_ENDPOINT;
++    if (endpoint) {
++      try {
++        await fetch(endpoint, {
++          method: "POST",
++          headers: {
++            "Content-Type": "application/json",
++            Accept: "application/json",
++          },
++          body: JSON.stringify({
++            email: "Talha.Chughtai@outlook.com",
++            subject: `New order ${order.id}`,
++            message: `A new order has been placed.\nOrder ID: ${order.id}\nTotal: ${total.toFixed(2)}\nItems: ${items
++              .map(
++                (item: any) =>
++                  `${item.quantity} x ${item.name ?? item.id} @ ${item.price}`,
++              )
++              .join(", ")}`,
++          }),
++        });
++      } catch (e) {
++        // Log but don't fail the request if email sending fails
++        console.error("Formspree request failed", e);
++      }
++    }
++    return NextResponse.json({ orderId: order.id }, { status: 201 });
++  } catch (e: any) {
++    return NextResponse.json(
++      { error: e.message || "An unexpected error occurred" },
++      { status: 500 },
++    );
++  }
++}
+\ No newline at end of file
+diff --git a/app/checkout/page.tsx b/app/checkout/page.tsx
+index 77c4e87..896bf36 100644
+--- a/app/checkout/page.tsx
++++ b/app/checkout/page.tsx
+@@ -1,14 +1,105 @@
++"use client";
++
++import { useState } from "react";
++import Link from "next/link";
++import { useCart } from "@/components/cart-context";
++
+ /**
+- * Checkout page stub.
+- * Will handle order submission and email notifications in a later pull request.
++ * CheckoutPage displays the final order summary and allows the user to place
++ * the order. On submission it calls the /api/checkout endpoint with the
++ * cart items. A success message is shown and the cart is cleared on a
++ * successful response.
+  */
+ export default function CheckoutPage() {
++  const { cart, total, clearCart } = useCart();
++  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
++  const [message, setMessage] = useState<string | null>(null);
++  const placeOrder = async () => {
++    if (cart.length === 0) return;
++    setStatus("loading");
++    try {
++      const res = await fetch("/api/checkout", {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({ items: cart }),
++      });
++      const data = await res.json();
++      if (!res.ok) {
++        throw new Error(data.error || "Failed to place order");
++      }
++      clearCart();
++      setStatus("success");
++      setMessage(
++        `Order submitted successfully! Your order ID is ${data.orderId}.`,
++      );
++    } catch (err: any) {
++      setStatus("error");
++      setMessage(err.message || "An unexpected error occurred.");
++    }
++  };
++  if (status === "success" && message) {
++    return (
++      <div className="space-y-4">
++        <h1 className="text-2xl font-semibold">Checkout</h1>
++        <p className="text-green-700">{message}</p>
++        <Link
++          href="/products"
++          className="text-primary hover:underline"
++        >
++          Continue shopping
++        </Link>
++      </div>
++    );
++  }
+   return (
+     <div className="space-y-4">
+       <h1 className="text-2xl font-semibold">Checkout</h1>
+-      <p className="text-muted-foreground">
+-        Checkout flow will be implemented soon.
+-      </p>
++      {cart.length === 0 ? (
++        <p className="text-muted-foreground">Your cart is empty.</p>
++      ) : (
++        <>
++          <ul className="divide-y divide-border rounded-md border border-border">
++            {cart.map((item) => (
++              <li
++                key={item.id}
++                className="p-4 flex justify-between items-center"
++              >
++                <div>
++                  <Link
++                    href={`/product/${item.slug}`}
++                    className="font-medium hover:underline"
++                  >
++                    {item.name}
++                  </Link>
++                  <p className="text-sm text-muted-foreground">
++                    Qty: {item.quantity}
++                  </p>
++                </div>
++                <p className="font-medium">
++                  {(item.price * item.quantity).toFixed(2)}
++                </p>
++              </li>
++            ))}
++          </ul>
++          <div className="flex justify-end mt-4">
++            <p className="text-lg font-semibold">
++              Total: {total.toFixed(2)}
++            </p>
++          </div>
++          {status === "error" && message && (
++            <p className="text-red-600">{message}</p>
++          )}
++          <div className="flex justify-end mt-2">
++            <button
++              onClick={placeOrder}
++              disabled={status === "loading"}
++              className="bg-primary text-primary-foreground rounded-md px-4 py-2 hover:bg-primary/90 disabled:opacity-50"
++            >
++              {status === "loading" ? "Submitting..." : "Place Order"}
++            </button>
++          </div>
++        </>
++      )}
+     </div>
+   );
+ }
+\ No newline at end of file
+diff --git a/supabase/migrations/20250808120000_create_orders.sql b/supabase/migrations/20250808120000_create_orders.sql
+new file mode 100644
+index 0000000..5e55162
+--- /dev/null
++++ b/supabase/migrations/20250808120000_create_orders.sql
+@@ -0,0 +1,27 @@
++-- Migration: Create orders and order_items tables
++
++-- Create orders table
++create table if not exists public.orders (
++  id uuid primary key default gen_random_uuid(),
++  -- The user who placed the order (nullable for guest checkout)
++  user_id uuid references auth.users(id) on delete set null,
++  -- Total amount for the order
++  total numeric not null,
++  -- Store ID for multi-store setups
++  store_id uuid references public.profiles(store_id) on delete set null,
++  -- Timestamp of order creation
++  created_at timestamp with time zone default timezone('utc'::text, now()) not null
++);
++
++-- Create order_items table
++create table if not exists public.order_items (
++  id uuid primary key default gen_random_uuid(),
++  order_id uuid references public.orders(id) on delete cascade,
++  product_id uuid references public.products(id) on delete set null,
++  quantity integer not null,
++  price numeric not null,
++  sku text,
++  vendor_id uuid references public.vendors(id) on delete set null,
++  category_id uuid references public.categories(id) on delete set null,
++  created_at timestamp with time zone default timezone('utc'::text, now()) not null
++);
+\ No newline at end of file

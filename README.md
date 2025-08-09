@@ -103,3 +103,51 @@ Please file feedback and issues over on the [Supabase GitHub org](https://github
 - [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
 - [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
 - [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+
+## E-commerce Catalog Proof‑of‑Concept
+
+This repository has been extended with a simple e‑commerce catalog built with Next.js and Supabase.
+The goal of the catalog is to provide a modern Amazon‑style browsing experience with search, vendor
+and category filters, product detail pages, a shopping cart, checkout, and account management.
+
+The implementation is broken down into small pull requests. The first pull request introduces the
+layout shell, navigation bar with search, sidebar with vendor/category filters, an empty grid on
+the `/products` page, and route stubs for product details, cart, checkout and account pages.
+
+### Environment variables
+
+To run the catalog locally or deploy it on Vercel you will need to provide a few Supabase keys in
+your environment:
+
+- `NEXT_PUBLIC_SUPABASE_URL` – your Supabase project URL (e.g. `https://xyzcompany.supabase.co`).
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` – the Supabase anon (publishable) API key.
+- `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY` – a Supabase service role key (required later for inserting orders).
+- `NEXT_PUBLIC_SITE_URL` – the base URL for your deployment. This defaults to `http://localhost:3000`
+  in development and is used when generating absolute URLs in emails.
+
+Create a `.env.local` file in the root of the project and set the above variables. When deploying to
+Vercel, configure the same variables in the Vercel dashboard.
+
+### Running locally
+
+1. Clone the repository and change into the project directory.
+2. Copy `.env.example` to `.env.local` (create one if it does not exist) and set the environment variables described above.
+3. Install dependencies and start the development server:
+
+   ```bash
+   npm install
+   npm run dev
+   ```
+
+4. Open [http://localhost:3000/products](http://localhost:3000/products) to view the catalog. The
+   home page from the starter kit remains available at `/`.
+
+### Previewing on Vercel
+
+Deploy the project to Vercel either via the GitHub integration or using the Vercel CLI. Ensure the
+environment variables are configured in the Vercel dashboard. Once deployed, visit
+`https://your-vercel-url.vercel.app/products` to access the catalog.
+
+Later pull requests will flesh out server side rendering for `/products`, Supabase queries,
+pagination, cart functionality, checkout order insertion, email notifications via Formbricks, and
+account‑level order history.

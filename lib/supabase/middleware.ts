@@ -50,6 +50,12 @@ export async function updateSession(request: NextRequest) {
   if (
     request.nextUrl.pathname !== "/" &&
     !user &&
+    // Allow unauthenticated access to the public catalog and product pages
+    !request.nextUrl.pathname.startsWith("/products") &&
+    !request.nextUrl.pathname.startsWith("/product") &&
+    !request.nextUrl.pathname.startsWith("/cart") &&
+    !request.nextUrl.pathname.startsWith("/checkout") &&
+    // Continue to allow login and auth pages
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth")
   ) {
